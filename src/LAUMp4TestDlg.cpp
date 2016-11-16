@@ -12,11 +12,7 @@
 #include "DlgAudioTalk.h"
 #include "DlgUartTran.h"
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/highgui/highgui_c.h>
-
+#include "obj-tracking.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -31,12 +27,6 @@ HANDLE m_hMsgListWriteMutex = NULL;
 
 using namespace std;
 using namespace cv;
-
-Rect box;//bounding box
-bool drawing_box = false;
-bool gotBB = false;//是否已经画出bounding box
-
-
 
 /////////////////////////////////////////////////////////////////////////////
 // CAboutDlg dialog used for App About
@@ -1179,7 +1169,7 @@ void CLAUMp4TestDlg::LocalRecStart()
 	if(s_ChanSock[g_GlobeEnvi.m_iSelWndSn] != -1)
 	{
 		char sRecFileName[MAX_PATH];
-		sprintf(sRecFileName, "%s%d%s", "C:\\Users\\rsq\\Desktop\\test_", g_GlobeEnvi.m_iSelWndSn, ".mp4");
+		sprintf(sRecFileName, "%s%d%s", fname_mp4, g_GlobeEnvi.m_iSelWndSn, ".mp4");
 		BOOL bSuc = VSNET_ClientStartMp4Capture(s_ChanSock[g_GlobeEnvi.m_iSelWndSn],sRecFileName);
 		pGet_SelChl()->m_bLocalRecing = bSuc;
 	}
@@ -1812,67 +1802,10 @@ void CLAUMp4TestDlg::OnBtnCall()
 //	}
 //}
 
-static void mouseHandler(int event, int x, int y, int flags, void *param) {
-	switch (event) {
-	case CV_EVENT_MOUSEMOVE:
-		if (drawing_box) {
-			box.width = x - box.x;
-			box.height = y - box.y;
-		}
-		break;
-	case CV_EVENT_LBUTTONDOWN:
-		drawing_box = true;
-		box = Rect(x, y, 0, 0);
-		break;
-	case CV_EVENT_LBUTTONUP:
-		drawing_box = false;
-		if (box.width < 0) {
-			box.x += box.width;
-			box.width *= -1;
-		}
-		if (box.height < 0) {
-			box.y += box.height;
-			box.height *= -1;
-		}
-		gotBB = true;
-		break;
-	}
-
-}
-
-
 void CLAUMp4TestDlg::OnBtnBmpcapture()//getFrame()
 {
 	LONG m_hChl = s_ChanSock[iGet_SelChlNo()];
-	int fps = 25;//帧率25
-	if (m_hChl != -1)
-	{
-		namedWindow("frame");
-		cvSetMouseCallback("frame", mouseHandler, NULL);
-		VSNET_ClientCapturePicture(m_hChl, "C:\\Users\\rsq\\Desktop\\BMPCAPTURE.bmp");//抓到的图片的存放路径
-		Mat frame = imread("C:\\Users\\rsq\\Desktop\\BMPCAPTURE.bmp");
-		imshow("frame", frame);
-		waitKey(1000 / fps);
-//get bounding box
-
-		while (!gotBB )
-		{
-			rectangle(frame, cvPoint(box.x, box.y), cvPoint(box.x + box.width, box.y + box.height), Scalar(0,0,255));
-			imshow("frame", frame);
-			waitKey(1000/fps);
-		}
-
-		cvSetMouseCallback("frame", NULL, NULL);
-		while (true)
-		{
-			VSNET_ClientCapturePicture(m_hChl, "C:\\Users\\rsq\\Desktop\\BMPCAPTURE.bmp");
-			Mat frame = imread("C:\\Users\\rsq\\Desktop\\BMPCAPTURE.bmp");//抓到的frame，进行处理
-			rectangle(frame, cvPoint(box.x, box.y), cvPoint(box.x + box.width, box.y + box.height), Scalar(255,0,0));
-			imshow("frame", frame);
-			waitKey(1000 / fps);
-		}
-
-	}
+  ObjTracking(m_hChl);
 }
 
 void CLAUMp4TestDlg::OnBtnServerjpgcapture() 
